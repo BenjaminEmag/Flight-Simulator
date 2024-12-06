@@ -21,6 +21,11 @@ public class AircraftController : MonoBehaviour
     public float liftCoefficient = 0.5f;
     public float dragCoefficient = 0.02f;
 
+    private float pitchInput = 0f;
+    private float yawInput = 0f;
+    private float rollInput = 0f;
+    private float thrustInput = 0f;
+
 
     public TMP_Text thrustText;
     public TMP_Text HeightText;
@@ -34,59 +39,15 @@ public class AircraftController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        HandleInput();
+        ApplyControls();
+
         ApplyAerodynamics();
         ApplyForces();
-
         UpdateUI();
 
         totalForce = Vector3.zero;
         totalTorque = Vector3.zero;
-    }
-
-    private void HandleInput()
-    {
-        if (Input.GetKey(KeyCode.W))
-        {
-            thrustPercentage = Mathf.Min(thrustPercentage + 1f, 100f);
-            zeroController.thrustPercentage = thrustPercentage;
-        }
-        else if (Input.GetKey(KeyCode.S))
-        {
-            thrustPercentage = Mathf.Max(thrustPercentage - 1f, 0f);
-            zeroController.thrustPercentage = thrustPercentage;
-        }
-
-        float thrustCoefficent = (thrustPercentage / 100f) * thrust;
-
-        totalForce += transform.forward * thrustCoefficent;
-
-        if (Input.GetKey(KeyCode.UpArrow))
-        {
-            totalTorque += transform.right * pitchTorque;
-        }
-        else if (Input.GetKey(KeyCode.DownArrow))
-        {
-            totalTorque -= transform.right * pitchTorque;
-        }
-
-        if (Input.GetKey(KeyCode.A))
-        {
-            totalTorque += transform.forward * rollTorque;
-        }
-        else if (Input.GetKey(KeyCode.D))
-        {
-            totalTorque -= transform.forward * rollTorque;
-        }
-
-        if (Input.GetKey(KeyCode.LeftArrow))
-        {
-            totalTorque -= transform.up * yawTorque;
-        }
-        else if (Input.GetKey(KeyCode.RightArrow))
-        {
-            totalTorque += transform.up * yawTorque;
-        }
+        zeroController.thrustPercentage = thrustPercentage;
     }
 
     private void ApplyAerodynamics()
@@ -122,6 +83,26 @@ public class AircraftController : MonoBehaviour
             HeightText.text = $"Height: {rootParticle.transform.position.y - 91.5f:F0}";
         }
 
+    }
+
+    public void ApplyControls()
+    {
+        totalTorque = Vector3.zero;
+        totalTorque += transform.right * pitchInput * pitchTorque;
+        totalTorque += transform.up * yawInput * yawTorque;
+        totalTorque += transform.forward * rollTorque * rollInput;
+
+        thrustPercentage = Mathf.Clamp(thrustPercentage + thrustInput, 0f, 100f);
+        float thrustCoefficent = (thrustPercentage / 100f);
+        totalForce += transform.forward * thrustCoefficent * thrust;
+    }
+
+    public void SetInput(float pitch, float yaw, float roll, float thrust)
+    {
+        pitchInput = pitch;
+        yawInput = yaw;
+        rollInput = roll;
+        thrustInput = thrust;
     }
 
     private void OnDrawGizmos()

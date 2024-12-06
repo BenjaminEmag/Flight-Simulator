@@ -1,110 +1,167 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class CollisionManager : MonoBehaviour
 {
-    private List<PhysicsCollider> planePartColliders = new List<PhysicsCollider>();
-    private List<PhysicsCollider> environmentColliders = new List<PhysicsCollider>();
-    private List<PhysicsCollider> criticalPlanePart = new List<PhysicsCollider>();
-    private PhysicsCollider rootCollider;
+    private class AirplaneColliders
+    {
+        public PhysicsCollider RootCollider { get; set; }
+        public List<PhysicsCollider> PlaneParts { get; set; } = new List<PhysicsCollider>();
+        public List<PhysicsCollider> CriticalParts { get; set; } = new List<PhysicsCollider>();
+        public PhysicsCollider Goal { get; set; }
+    }
 
-    Vector3 startPos = new Vector3(0f, 91.5f, 0f);
+    private readonly List<AirplaneColliders> airplanes = new List<AirplaneColliders>();
+    private readonly List<PhysicsCollider> environmentColliders = new List<PhysicsCollider>();
+    private readonly List<PhysicsCollider> goalColliders = new List<PhysicsCollider>();
+
     private void Awake()
     {
-        rootCollider = GameObject.FindGameObjectWithTag("PlaneRoot").GetComponent<PhysicsCollider>();
-
-        // Gather colliders for all parts
-        foreach (var obj in GameObject.FindGameObjectsWithTag("PlanePart"))
-        {
-            if (obj.TryGetComponent(out PhysicsCollider collider))
-            {
-                planePartColliders.Add(collider);
-            }
-        }
-
-        foreach (var obj in GameObject.FindGameObjectsWithTag("Environment"))
-        {
-            if (obj.TryGetComponent(out PhysicsCollider collider))
-            {
-                environmentColliders.Add(collider);
-            }
-        }
-
-        foreach (var obj in GameObject.FindGameObjectsWithTag("CriticalPlanePart"))
-        {
-            if (obj.TryGetComponent(out PhysicsCollider collider))
-            {
-                criticalPlanePart.Add(collider);
-            }
-        }
-
+        InitializeEnvironmentColliders("Environment");
+        InitializeGoalColliders("Goal");
+        InitializeAirplanes();
     }
 
     private void FixedUpdate()
     {
-        AggregateAndResolveCollisions();
-        CheckCritPlane();
+        CheckGoalCollisions();
+
+        foreach (var airplane in airplanes)
+        {
+            ResolveAirplaneCollisions(airplane);
+            CheckCriticalPartCollisions(airplane);
+        }
     }
-    private void AggregateAndResolveCollisions()
+
+    private void InitializeEnvironmentColliders(string tag)
     {
-        Vector3 totalNormal = Vector3.zero;
+        environmentColliders.AddRange(
+            GameObject.FindGameObjectsWithTag(tag)
+                      .Select(obj => obj.GetComponent<PhysicsCollider>())
+                      .Where(collider => collider != null)
+        );
+    }
+
+    private void InitializeGoalColliders(string tag)
+    {
+        goalColliders.AddRange(
+            GameObject.FindGameObjectsWithTag(tag)
+                      .Select(obj => obj.GetComponent<PhysicsCollider>())
+                      .Where(collider => collider != null)
+        );
+    }
+
+    private void InitializeAirplanes()
+    {
+        foreach (var rootObj in GameObject.FindGameObjectsWithTag("PlaneRoot"))
+        {
+            var rootCollider = rootObj.GetComponent<PhysicsCollider>();
+            if (rootCollider == null || airplanes.Any(a => a.RootCollider == rootCollider))
+                continue;
+
+            var airplane = new AirplaneColliders
+            {
+                RootCollider = rootCollider,
+                PlaneParts = GetChildColliders(rootObj, "PlanePart"),
+                CriticalParts = GetChildColliders(rootObj, "CriticalPlanePart"),
+                Goal = rootObj.GetComponent<AgentControl>()?.getGoal()
+            };
+
+            airplanes.Add(airplane);
+        }
+    }
+
+    private List<PhysicsCollider> GetChildColliders(GameObject parent, string tag)
+    {
+        return GameObject.FindGameObjectsWithTag(tag)
+                         .Where(obj => obj.transform.IsChildOf(parent.transform))
+                         .Select(obj => obj.GetComponent<PhysicsCollider>())
+                         .Where(collider => collider != null)
+                         .ToList();
+    }
+
+    private void CheckGoalCollisions()
+    {
+        foreach (var airplane in airplanes)
+        {
+            if (airplane.Goal == null) continue;
+
+            foreach (var part in airplane.PlaneParts)
+            {
+                if (CollisionDetection.GetCollisionInfo(part, airplane.Goal).IsColliding)
+                {
+                    TriggerGoalReached(airplane);
+                    break;
+                }
+            }
+        }
+    }
+
+    private void TriggerGoalReached(AirplaneColliders airplane)
+    {
+        airplane.RootCollider.GetComponent<AgentControl>()?.OnGoalCollected();
+    }
+
+    private void ResolveAirplaneCollisions(AirplaneColliders airplane)
+    {
+        Vector3 totalForce = Vector3.zero;
         float maxPenetration = 0f;
         Vector3 torqueAtCoM = Vector3.zero;
-        Vector3 objectCenterOfMass = rootCollider.GetComponent<Particle3D>().centerOfMass;
+        var centerOfMass = airplane.RootCollider.GetComponent<Particle3D>().centerOfMass;
 
-        foreach (var part in planePartColliders)
+        foreach (var part in airplane.PlaneParts)
         {
             foreach (var envCollider in environmentColliders)
             {
                 var collisionInfo = CollisionDetection.GetCollisionInfo(part, envCollider);
-                if (collisionInfo.IsColliding)
-                {
-                    
-                    Vector3 resolutionForce = collisionInfo.normal * collisionInfo.penetration;
-                    totalNormal += resolutionForce;
+                if (!collisionInfo.IsColliding) continue;
 
-                    maxPenetration = Mathf.Max(maxPenetration, collisionInfo.penetration);
+                totalForce += collisionInfo.normal * collisionInfo.penetration;
+                maxPenetration = Mathf.Max(maxPenetration, collisionInfo.penetration);
 
-                    Vector3 partPosition = part.transform.position;
-                    Vector3 contactPoint = partPosition - collisionInfo.normal * collisionInfo.penetration;
+                var displacement = (part.transform.position - collisionInfo.normal * collisionInfo.penetration) - centerOfMass;
+                var angularVelocity = airplane.RootCollider.GetComponent<Particle3D>().angularVelocity;
+                var relativeVelocity = Vector3.Cross(angularVelocity, displacement);
 
-                    Vector3 displacement = contactPoint - objectCenterOfMass;
-
-                    Vector3 angularVelocity = rootCollider.GetComponent<Particle3D>().angularVelocity;
-
-                    Vector3 relativeVelocityAtCollisionPoint = Vector3.Cross(angularVelocity, displacement);
-                    torqueAtCoM += Vector3.Cross(displacement, collisionInfo.normal * (collisionInfo.penetration + relativeVelocityAtCollisionPoint.magnitude));
-                }
+                torqueAtCoM += Vector3.Cross(displacement, collisionInfo.normal * (collisionInfo.penetration + relativeVelocity.magnitude));
             }
         }
 
         if (maxPenetration > 0f)
         {
-            Vector3 averageNormal = totalNormal.normalized;
-            CollisionDetection.ApplyCollisionResolution(rootCollider, averageNormal, torqueAtCoM, maxPenetration);
+            CollisionDetection.ApplyCollisionResolution(airplane.RootCollider, totalForce.normalized, torqueAtCoM, maxPenetration);
+            airplane.RootCollider.GetComponent<AgentControl>().isFlying = false;
+        }
+        else
+        {
+            airplane.RootCollider.GetComponent<AgentControl>().isFlying = true;
         }
     }
 
-    private void CheckCritPlane()
+    private void CheckCriticalPartCollisions(AirplaneColliders airplane)
     {
-        foreach (var env in environmentColliders)
+        foreach (var criticalPart in airplane.CriticalParts)
         {
-            foreach (var crit in criticalPlanePart)
+            foreach (var envCollider in environmentColliders)
             {
-                var collisionInfo = CollisionDetection.GetCollisionInfo(env, crit);
-                if (collisionInfo.IsColliding)
+                if (CollisionDetection.GetCollisionInfo(criticalPart, envCollider).IsColliding)
                 {
-                    ResetPlane();
+                    ResetAirplane(airplane);
+                    airplane.RootCollider.GetComponent<AgentControl>()?.OnCrash();
+                    return;
                 }
             }
         }
     }
 
-    private void ResetPlane()
+    private void ResetAirplane(AirplaneColliders airplane)
     {
-        rootCollider.transform.SetPositionAndRotation(startPos, Quaternion.identity);
-        Particle3D particle = rootCollider.GetComponent<Particle3D>();
+        var rootTransform = airplane.RootCollider.transform;
+        rootTransform.SetPositionAndRotation(new Vector3(0f, 91.5f, 0f), Quaternion.identity);
+
+        var particle = airplane.RootCollider.GetComponent<Particle3D>();
         if (particle != null)
         {
             particle.velocity = Vector3.zero;
@@ -113,7 +170,19 @@ public class CollisionManager : MonoBehaviour
             particle.torque = Vector3.zero;
         }
 
-        rootCollider.GetComponent<AircraftController>().thrustPercentage = 0f;
+        airplane.RootCollider.GetComponent<AircraftController>().thrustPercentage = 0f;
     }
 
+    public void SetGoal(PhysicsCollider rootCollider, PhysicsCollider goal)
+    {
+        var airplane = airplanes.FirstOrDefault(a => a.RootCollider == rootCollider);
+        if (airplane != null)
+        {
+            airplane.Goal = goal;
+        }
+        else
+        {
+            Debug.LogError("Error: Root collider not found for setting the goal.");
+        }
+    }
 }

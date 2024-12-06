@@ -7,7 +7,6 @@ public class CameraController : MonoBehaviour
     public Transform pov;
     public float speed;
 
-    private int index = 0;
     private Vector3 target;
 
     private void Update()
