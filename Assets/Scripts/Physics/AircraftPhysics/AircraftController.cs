@@ -16,6 +16,7 @@ public class AircraftController : MonoBehaviour
     public float pitchTorque = 2f;
     public float rollTorque = 2f;
     public float yawTorque = 1f;
+    public float brakeForce = 1f;
 
     [Header("Aerodynamics")]
     public float liftCoefficient = 0.5f;
@@ -25,6 +26,10 @@ public class AircraftController : MonoBehaviour
     private float yawInput = 0f;
     private float rollInput = 0f;
     private float thrustInput = 0f;
+    private bool braking = false;
+
+    public bool isOnRunway = false;
+    public bool isLanded = false;
 
 
     public TMP_Text thrustText;
@@ -97,12 +102,30 @@ public class AircraftController : MonoBehaviour
         totalForce += transform.forward * thrustCoefficent * thrust;
     }
 
-    public void SetInput(float pitch, float yaw, float roll, float thrust)
+    public void SetInput(float pitch, float yaw, float roll, float thrust, bool brake)
     {
         pitchInput = pitch;
         yawInput = yaw;
         rollInput = roll;
         thrustInput = thrust;
+        braking = brake && isOnRunway;
+    }
+    private void ApplyBrakes()
+    {
+        if (!isOnRunway || !braking) return;
+
+        Vector3 velocity = rootParticle.velocity;
+
+        Vector3 brakeForceVector = -velocity.normalized * brakeForce;
+
+        totalForce += brakeForceVector;
+
+        if (velocity.magnitude < 1f)
+        {
+            rootParticle.velocity = Vector3.zero;
+            braking = false;
+            isLanded = true;
+        }
     }
 
     private void OnDrawGizmos()

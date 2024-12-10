@@ -787,17 +787,14 @@ MonoBehaviour:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
   MaxStep: 0
-  SpawnAreaMin: {x: -450, y: 91.5, z: -400}
-  SpawnAreaMax: {x: 450, y: 91.5, z: -490}
-  GoalSpawnAreaMin: {x: 400, y: 400, z: -400}
-  GoalSpawnAreaMax: {x: -400, y: 400, z: 400}
-  MinBounds: {x: -500, y: 0, z: -500}
-  MaxBounds: {x: 500, y: 500, z: 500}
+  SpawnAreaMin: {x: -100, y: 150, z: -400}
+  SpawnAreaMax: {x: 100, y: 250, z: -500}
+  MinBounds: {x: -250, y: 0, z: -500}
+  MaxBounds: {x: 250, y: 200, z: 500}
   RotationYRange: {x: -30, y: 30}
-  MaxDistance: 2000
   root: {fileID: 885017503514469421}
   controller: {fileID: 7555711545001401444}
-  GoalPrefab: {fileID: 8812405246643462917, guid: 627dc6b0e896be94b97d00094137610b, type: 3}
+  runway: {fileID: 0}
   isFlying: 0
 --- !u!114 &3139050602525847014
 MonoBehaviour:

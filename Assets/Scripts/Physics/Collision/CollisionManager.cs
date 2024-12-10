@@ -10,7 +10,6 @@ public class CollisionManager : MonoBehaviour
         public PhysicsCollider RootCollider { get; set; }
         public List<PhysicsCollider> PlaneParts { get; set; } = new List<PhysicsCollider>();
         public List<PhysicsCollider> CriticalParts { get; set; } = new List<PhysicsCollider>();
-        public PhysicsCollider Goal { get; set; }
     }
 
     private readonly List<AirplaneColliders> airplanes = new List<AirplaneColliders>();
@@ -26,7 +25,6 @@ public class CollisionManager : MonoBehaviour
 
     private void FixedUpdate()
     {
-        CheckGoalCollisions();
 
         foreach (var airplane in airplanes)
         {
@@ -66,7 +64,6 @@ public class CollisionManager : MonoBehaviour
                 RootCollider = rootCollider,
                 PlaneParts = GetChildColliders(rootObj, "PlanePart"),
                 CriticalParts = GetChildColliders(rootObj, "CriticalPlanePart"),
-                Goal = rootObj.GetComponent<AgentControl>()?.getGoal()
             };
 
             airplanes.Add(airplane);
@@ -81,29 +78,6 @@ public class CollisionManager : MonoBehaviour
                          .Where(collider => collider != null)
                          .ToList();
     }
-
-    private void CheckGoalCollisions()
-    {
-        foreach (var airplane in airplanes)
-        {
-            if (airplane.Goal == null) continue;
-
-            foreach (var part in airplane.PlaneParts)
-            {
-                if (CollisionDetection.GetCollisionInfo(part, airplane.Goal).IsColliding)
-                {
-                    TriggerGoalReached(airplane);
-                    break;
-                }
-            }
-        }
-    }
-
-    private void TriggerGoalReached(AirplaneColliders airplane)
-    {
-        airplane.RootCollider.GetComponent<AgentControl>()?.OnGoalCollected();
-    }
-
     private void ResolveAirplaneCollisions(AirplaneColliders airplane)
     {
         Vector3 totalForce = Vector3.zero;
@@ -126,6 +100,9 @@ public class CollisionManager : MonoBehaviour
                 var relativeVelocity = Vector3.Cross(angularVelocity, displacement);
 
                 torqueAtCoM += Vector3.Cross(displacement, collisionInfo.normal * (collisionInfo.penetration + relativeVelocity.magnitude));
+
+                var agentControl = airplane.RootCollider.GetComponent<AgentControl>();
+                agentControl?.OnCollisionEvent(envCollider);
             }
         }
 
@@ -171,18 +148,5 @@ public class CollisionManager : MonoBehaviour
         }
 
         airplane.RootCollider.GetComponent<AircraftController>().thrustPercentage = 0f;
-    }
-
-    public void SetGoal(PhysicsCollider rootCollider, PhysicsCollider goal)
-    {
-        var airplane = airplanes.FirstOrDefault(a => a.RootCollider == rootCollider);
-        if (airplane != null)
-        {
-            airplane.Goal = goal;
-        }
-        else
-        {
-            Debug.LogError("Error: Root collider not found for setting the goal.");
-        }
     }
 }

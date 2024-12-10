@@ -577,6 +577,103 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1248592361
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1248592365}
+  - component: {fileID: 1248592364}
+  - component: {fileID: 1248592363}
+  - component: {fileID: 1248592362}
+  m_Layer: 0
+  m_Name: Runway
+  m_TagString: Environment
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1248592362
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1248592361}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 63d2c263a43274cfa974652ea583fa2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  halfExtents: {x: 0.5, y: 0.5, z: 0.5}
+--- !u!23 &1248592363
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1248592361}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 5280a4264f04ced4d8fcb248c321d489, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &1248592364
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1248592361}
+  m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!4 &1248592365
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1248592361}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 84.8, z: 0}
+  m_LocalScale: {x: 63.274376, y: 10, z: 448.06894}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1273032171
 GameObject:
   m_ObjectHideFlags: 0
@@ -837,7 +934,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 84.7, z: 0}
-  m_LocalScale: {x: 2000, y: 10, z: 2000}
+  m_LocalScale: {x: 500, y: 10, z: 1000}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -1412,24 +1509,16 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3722223071108482885, guid: 4894ceafbb7236b49ad046964dcb65c0, type: 3}
-      propertyPath: MaxBounds.x
-      value: 900
-      objectReference: {fileID: 0}
-    - target: {fileID: 3722223071108482885, guid: 4894ceafbb7236b49ad046964dcb65c0, type: 3}
-      propertyPath: MaxBounds.z
-      value: 900
-      objectReference: {fileID: 0}
-    - target: {fileID: 3722223071108482885, guid: 4894ceafbb7236b49ad046964dcb65c0, type: 3}
-      propertyPath: MinBounds.x
-      value: -900
-      objectReference: {fileID: 0}
-    - target: {fileID: 3722223071108482885, guid: 4894ceafbb7236b49ad046964dcb65c0, type: 3}
-      propertyPath: MinBounds.z
-      value: -900
-      objectReference: {fileID: 0}
+      propertyPath: runway
+      value: 
+      objectReference: {fileID: 1248592361}
     - target: {fileID: 4721648728178536542, guid: 4894ceafbb7236b49ad046964dcb65c0, type: 3}
       propertyPath: m_Name
       value: PlaneRoot
+      objectReference: {fileID: 0}
+    - target: {fileID: 9125886198495231550, guid: 4894ceafbb7236b49ad046964dcb65c0, type: 3}
+      propertyPath: m_BrainParameters.VectorObservationSize
+      value: 18
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1442,6 +1531,7 @@ SceneRoots:
   m_Roots:
   - {fileID: 577122604}
   - {fileID: 1370745830}
+  - {fileID: 1248592365}
   - {fileID: 4420589553314626402}
   - {fileID: 890579934}
   - {fileID: 2052802322}

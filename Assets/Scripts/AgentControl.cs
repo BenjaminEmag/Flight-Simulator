@@ -7,36 +7,22 @@ using Unity.MLAgents.Sensors;
 
 public class AgentControl : Agent
 {
-    // Serialized Variables
     [SerializeField] private Vector3 SpawnAreaMin = new Vector3(-5, 92, -5);
     [SerializeField] private Vector3 SpawnAreaMax = new Vector3(5, 92, 5);
-
-    [SerializeField] private Vector3 GoalSpawnAreaMin = new Vector3(-5, 92, -5);
-    [SerializeField] private Vector3 GoalSpawnAreaMax = new Vector3(5, 92, 5);
 
     [SerializeField] private Vector3 MinBounds = new Vector3(-500, 80f, -500);
     [SerializeField] private Vector3 MaxBounds = new Vector3(500, 500f, 500);
 
     [SerializeField] private Vector2 RotationYRange = new Vector2(-30, 30);
-    [SerializeField] private float MaxDistance = 2000f;
+    [SerializeField] private Vector2 ThrustRange = new Vector2(50, 100);
 
     public Particle3D root;
     public AircraftController controller;
-    [SerializeField] GameObject GoalPrefab;
-    private GameObject CurrentGoal;
+    public GameObject runway;
 
     private float timer = 0f;
-    private float maxTime = 200f; // Max time for episode (seconds)
+    private float maxTime = 30f; // Max time for episode (seconds)
     public bool isFlying = false;
-
-    // Initialization Methodsp
-    private void Awake()
-    {
-        if (CurrentGoal == null)
-        {
-            CurrentGoal = Instantiate(GoalPrefab, GetRandomPosition(GoalSpawnAreaMin, GoalSpawnAreaMax), Quaternion.identity);
-        }
-    }
 
     public Vector3 GetRandomPosition(Vector3 min, Vector3 max)
     {
@@ -51,31 +37,19 @@ public class AgentControl : Agent
     {
         return Quaternion.Euler(0, Random.Range(RotationYRange.x, RotationYRange.y), 0);
     }
-
-    public PhysicsCollider getGoal()
+    public int GetRandomThrust()
     {
-        if (CurrentGoal == null)
-        {
-            CurrentGoal = Instantiate(GoalPrefab, GetRandomPosition(GoalSpawnAreaMin, GoalSpawnAreaMax), Quaternion.identity);
-        }
-
-        return CurrentGoal.GetComponent<PhysicsCollider>();
+        return (int)Random.Range(ThrustRange.x, ThrustRange.y);
     }
+
     public override void OnEpisodeBegin()
     {
         ResetPlane();
-        timer = 0f;
+        controller.thrustPercentage = GetRandomThrust();
+        timer = Time.time + maxTime;
+
         transform.position = GetRandomPosition(SpawnAreaMin, SpawnAreaMax);
         transform.rotation = GetRandomRotation();
-
-        CurrentGoal.transform.position = GetRandomPosition(GoalSpawnAreaMin, GoalSpawnAreaMax);
-    }
-
-    public void OnGoalCollected()
-    {
-        CurrentGoal.transform.position = GetRandomPosition(GoalSpawnAreaMin, GoalSpawnAreaMax);
-        AddReward(5f);
-        timer = 0f;
     }
 
     public void OnCrash()
@@ -86,28 +60,28 @@ public class AgentControl : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        timer += Time.deltaTime;
-
         float thrust = actions.ContinuousActions[0] + actions.ContinuousActions[1];
         float pitch = actions.ContinuousActions[2] + actions.ContinuousActions[3];
         float roll = actions.ContinuousActions[4] + actions.ContinuousActions[5];
         float yaw = actions.ContinuousActions[6] + actions.ContinuousActions[7];
 
-        controller.SetInput(pitch, yaw, roll, thrust);
+        bool brake = actions.DiscreteActions[0] == 1;
 
-        if (isFlying)
-        {
-            AddReward(0.01f);
-        }
+        controller.SetInput(pitch, yaw, roll, thrust, brake);
+
+        Vector3 runwayDirection = (runway.transform.position - transform.position).normalized;
+        float alignmentReward = Vector3.Dot(transform.forward, runwayDirection);
+        AddReward(alignmentReward * 0.1f);
 
         ApplyTimePenalty();
-        RewardOnPathToGoal();
         CheckOutOfRange();
     }
+
 
     public override void Heuristic(in ActionBuffers actions)
     {
         ActionSegment<float> continousAction = actions.ContinuousActions;
+        ActionSegment<int> discreteActions = actions.DiscreteActions;
 
         continousAction[0] = Input.GetKey(KeyCode.W) ? 1 : 0;
         continousAction[1] = Input.GetKey(KeyCode.S) ? -1 : 0;
@@ -117,58 +91,39 @@ public class AgentControl : Agent
         continousAction[5] = Input.GetKey(KeyCode.D) ? -1 : 0;
         continousAction[6] = Input.GetKey(KeyCode.LeftArrow) ? -1 : 0;
         continousAction[7] = Input.GetKey(KeyCode.RightArrow) ? 1 : 0;
+
+        discreteActions[0] = Input.GetKey(KeyCode.Space) ? 1 : 0;
     }
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        // ML prefers values between 0-1 this is my attempt at doing all that
-        Quaternion rotation = transform.rotation;
-        Vector3 normalizedRotation = rotation.eulerAngles / 360.0f;
+        sensor.AddObservation(transform.localPosition);
+        sensor.AddObservation(transform.localRotation.eulerAngles);
 
-        float normalizedThrust = controller.thrustPercentage / 100f;
-
-        Vector3 goalRelativePosition = CurrentGoal.transform.position - transform.position;
-        goalRelativePosition.Normalize();
-        float distance = goalRelativePosition.magnitude;
-        goalRelativePosition = goalRelativePosition * Mathf.Clamp01(distance / MaxDistance);
-
-        sensor.AddObservation(transform.position);
         sensor.AddObservation(root.velocity);
-        sensor.AddObservation(normalizedRotation);
         sensor.AddObservation(root.angularVelocity);
-        sensor.AddObservation(root.acceleration);
-        sensor.AddObservation(normalizedThrust);
-        sensor.AddObservation(goalRelativePosition);
-    }
 
-    public void RewardOnPathToGoal()
-    {
-        Vector3 toGoal = CurrentGoal.transform.position - transform.position;
-        toGoal.Normalize();
+        Vector3 toRunway = runway.transform.position - transform.position;
+        sensor.AddObservation(toRunway);
+        sensor.AddObservation(Vector3.Dot(transform.forward, toRunway.normalized));
 
-        Vector3 forwardDirection = transform.forward;
+        sensor.AddObservation(transform.position.y);
 
-        float dotProduct = Vector3.Dot(toGoal, forwardDirection);
-
-        float alignmentReward = Mathf.Clamp01(dotProduct);
-        AddReward(alignmentReward * 0.05f);
-
+        sensor.AddObservation(controller.thrust);
     }
 
     public void ApplyTimePenalty()
     {
-        if (timer < maxTime)
+        if (Time.time >= timer)
         {
-            float timePenalty = timer * 0.01f;
-            AddReward(-timePenalty);
+            AddReward(-1f);
+            EndEpisode();
         }
     }
-
     private void CheckOutOfRange()
     {
         Vector3 position = transform.position;
 
-        // Trigger the reward/episode only if outside the bounds
         if (position.x < MinBounds.x || position.x > MaxBounds.x ||
             position.y < MinBounds.y || position.y > MaxBounds.y ||
             position.z < MinBounds.z || position.z > MaxBounds.z)
@@ -190,12 +145,27 @@ public class AgentControl : Agent
         controller.thrustPercentage = 0f;
     }
 
+    internal void OnCollisionEvent(PhysicsCollider envCollider)
+    {
+        GameObject collision = envCollider.gameObject;
+        //if (collision != runway)
+            //EndEpisode();
+    }
+
 #if UNITY_EDITOR
     private void OnDrawGizmos()
     {
-        // Draw a wireframe cube for the bounds
-        Gizmos.color = Color.red; // Choose a color for the cube (red in this case)
-        //Gizmos.DrawWireCube((MinBounds + MaxBounds) / 2, MaxBounds - MinBounds); // Draw the cube at the center with the correct size
+        {
+            Gizmos.color = Color.red;
+            Gizmos.DrawWireCube((MinBounds + MaxBounds) / 2, MaxBounds - MinBounds);
+
+        }
+
+        {
+            Gizmos.color = Color.blue;
+            Gizmos.DrawCube((SpawnAreaMin + SpawnAreaMax) / 2, SpawnAreaMax - SpawnAreaMin);
+        }
     }
+
 #endif
 }
