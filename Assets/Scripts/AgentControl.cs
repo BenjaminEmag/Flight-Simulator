@@ -4,6 +4,8 @@ using UnityEngine;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
+using Unity.VisualScripting;
+using UnityEditor.Experimental.GraphView;
 
 public class AgentControl : Agent
 {
@@ -22,7 +24,8 @@ public class AgentControl : Agent
 
     private float timer = 0f;
     private float maxTime = 30f; // Max time for episode (seconds)
-    public bool isFlying = false;
+
+    float accumReward = 0f;
 
     public Vector3 GetRandomPosition(Vector3 min, Vector3 max)
     {
@@ -44,6 +47,7 @@ public class AgentControl : Agent
 
     public override void OnEpisodeBegin()
     {
+        accumReward = 0f;
         ResetPlane();
         controller.thrustPercentage = GetRandomThrust();
         timer = Time.time + maxTime;
@@ -54,6 +58,7 @@ public class AgentControl : Agent
 
     public void OnCrash()
     {
+        AddReward(-1f);
         EndEpisode();
         ResetPlane();
     }
@@ -65,18 +70,51 @@ public class AgentControl : Agent
         float roll = actions.ContinuousActions[4] + actions.ContinuousActions[5];
         float yaw = actions.ContinuousActions[6] + actions.ContinuousActions[7];
 
-        bool brake = actions.DiscreteActions[0] == 1;
+        controller.SetInput(pitch, yaw, roll, thrust);
 
-        controller.SetInput(pitch, yaw, roll, thrust, brake);
+        // hard coded offset yuck
+        Vector3 runwayPoint = runway.transform.position + new Vector3(0f, 0f, 155f);
 
-        Vector3 runwayDirection = (runway.transform.position - transform.position).normalized;
+        Vector3 runwayDirection = (runwayPoint - transform.position).normalized;
         float alignmentReward = Vector3.Dot(transform.forward, runwayDirection);
-        AddReward(alignmentReward * 0.1f);
+        float distFromRunway = transform.position.y - runway.transform.position.y;
+
+        float heightReward = Mathf.Lerp(0f, 1f, distFromRunway);
+
+        if (alignmentReward > 0.95f)
+        {
+            AddReward(alignmentReward * 0.01f);
+            AddRewardd(alignmentReward * 0.01f);
+        }
+
 
         ApplyTimePenalty();
         CheckOutOfRange();
+        CheckLand();
     }
 
+    private void CheckLand()
+    {
+        if (controller.isLanded)
+        {
+            AddReward(5f);
+            AddRewardd(5f);
+
+            float distFromCenter = Mathf.Abs(transform.position.x);
+
+            float distReward = Mathf.Lerp(5f, 0f, distFromCenter / 30f);
+
+            float alignment = Vector3.Dot(transform.forward, transform.forward);
+
+
+            AddReward(distReward * alignment);
+            AddRewardd(distReward * alignment);
+
+            Debug.Log(accumReward);
+            EndEpisode();
+            ResetPlane();
+        }
+    }
 
     public override void Heuristic(in ActionBuffers actions)
     {
@@ -91,8 +129,6 @@ public class AgentControl : Agent
         continousAction[5] = Input.GetKey(KeyCode.D) ? -1 : 0;
         continousAction[6] = Input.GetKey(KeyCode.LeftArrow) ? -1 : 0;
         continousAction[7] = Input.GetKey(KeyCode.RightArrow) ? 1 : 0;
-
-        discreteActions[0] = Input.GetKey(KeyCode.Space) ? 1 : 0;
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -117,6 +153,7 @@ public class AgentControl : Agent
         if (Time.time >= timer)
         {
             AddReward(-1f);
+            AddRewardd(-1f);
             EndEpisode();
         }
     }
@@ -128,28 +165,34 @@ public class AgentControl : Agent
             position.y < MinBounds.y || position.y > MaxBounds.y ||
             position.z < MinBounds.z || position.z > MaxBounds.z)
         {
-            AddReward(-0.5f);
+            AddReward(-2f);
+            AddRewardd(-2f);
             EndEpisode();
-            ResetPlane();
         }
     }
 
     public void ResetPlane()
     {
+        controller.isLanded = false;
+        controller.isOnRunway = false;
 
         root.velocity = Vector3.zero;
         root.angularVelocity = Vector3.zero;
         root.accumulatedForces = Vector3.zero;
         root.torque = Vector3.zero;
-
-        controller.thrustPercentage = 0f;
     }
 
     internal void OnCollisionEvent(PhysicsCollider envCollider)
     {
         GameObject collision = envCollider.gameObject;
-        //if (collision != runway)
-            //EndEpisode();
+        if (collision != runway)
+            EndEpisode();
+    }
+
+
+    void AddRewardd(float amount)
+    {
+        accumReward += amount;
     }
 
 #if UNITY_EDITOR
@@ -166,6 +209,5 @@ public class AgentControl : Agent
             Gizmos.DrawCube((SpawnAreaMin + SpawnAreaMax) / 2, SpawnAreaMax - SpawnAreaMin);
         }
     }
-
 #endif
 }

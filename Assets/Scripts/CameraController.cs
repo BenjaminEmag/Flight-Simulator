@@ -5,8 +5,6 @@ using UnityEngine;
 public class CameraController : MonoBehaviour
 {
     public Transform pov;
-    public float speed;
-
     private Vector3 target;
 
     private void Update()
@@ -16,7 +14,7 @@ public class CameraController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        transform.position = Vector3.MoveTowards(transform.position, target, Time.deltaTime * speed);
+        transform.position = target;
         transform.forward = pov.forward;
         
     }

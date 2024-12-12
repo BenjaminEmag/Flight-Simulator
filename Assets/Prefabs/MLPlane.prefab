@@ -647,10 +647,10 @@ GameObject:
   - component: {fileID: 638242447988511117}
   - component: {fileID: 885017503514469421}
   - component: {fileID: 3387575721435809919}
-  - component: {fileID: 7555711545001401444}
   - component: {fileID: 9125886198495231550}
   - component: {fileID: 3722223071108482885}
   - component: {fileID: 3139050602525847014}
+  - component: {fileID: 7555711545001401444}
   m_Layer: 0
   m_Name: MLPlane
   m_TagString: PlaneRoot
@@ -719,28 +719,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   Radius: 0
---- !u!114 &7555711545001401444
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4721648728178536542}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d7f96ad03c4c0624e8dc4b63783bc343, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  zeroController: {fileID: 7199295050615594388}
-  thrustPercentage: 0
-  thrust: 500
-  pitchTorque: 1
-  rollTorque: 1
-  yawTorque: 1
-  liftCoefficient: 2
-  dragCoefficient: 0.04
-  thrustText: {fileID: 0}
-  HeightText: {fileID: 0}
 --- !u!114 &9125886198495231550
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -754,7 +732,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_BrainParameters:
-    VectorObservationSize: 19
+    VectorObservationSize: 18
     NumStackedVectorObservations: 5
     m_ActionSpec:
       m_NumContinuousActions: 8
@@ -766,7 +744,7 @@ MonoBehaviour:
   m_Model: {fileID: 0}
   m_InferenceDevice: 0
   m_BehaviorType: 0
-  m_BehaviorName: Flying
+  m_BehaviorName: landing
   TeamId: 0
   m_UseChildSensors: 1
   m_UseChildActuators: 1
@@ -787,15 +765,15 @@ MonoBehaviour:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
   MaxStep: 0
-  SpawnAreaMin: {x: -100, y: 150, z: -400}
+  SpawnAreaMin: {x: -100, y: 150, z: -450}
   SpawnAreaMax: {x: 100, y: 250, z: -500}
   MinBounds: {x: -250, y: 0, z: -500}
   MaxBounds: {x: 250, y: 200, z: 500}
   RotationYRange: {x: -30, y: 30}
+  ThrustRange: {x: 50, y: 100}
   root: {fileID: 885017503514469421}
   controller: {fileID: 7555711545001401444}
   runway: {fileID: 0}
-  isFlying: 0
 --- !u!114 &3139050602525847014
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -810,6 +788,32 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   DecisionPeriod: 1
   TakeActionsBetweenDecisions: 1
+--- !u!114 &7555711545001401444
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4721648728178536542}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d7f96ad03c4c0624e8dc4b63783bc343, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  zeroController: {fileID: 7199295050615594388}
+  thrustPercentage: 50
+  thrust: 500
+  pitchTorque: 1
+  rollTorque: 1
+  yawTorque: 1
+  liftCoefficient: 2
+  dragCoefficient: 0.04
+  isOnRunway: 0
+  isLanded: 0
+  thrustText: {fileID: 0}
+  HeightText: {fileID: 0}
+  minRunway: {x: -32.5, y: 86.5, z: -225}
+  MaxRunway: {x: 32.5, y: 92, z: 225}
 --- !u!1 &5408031318164610492
 GameObject:
   m_ObjectHideFlags: 0

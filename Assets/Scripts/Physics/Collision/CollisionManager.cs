@@ -28,8 +28,11 @@ public class CollisionManager : MonoBehaviour
 
         foreach (var airplane in airplanes)
         {
-            ResolveAirplaneCollisions(airplane);
-            CheckCriticalPartCollisions(airplane);
+            if (airplane.RootCollider.transform.position.y < 95f)
+            {
+                ResolveAirplaneCollisions(airplane);
+                CheckCriticalPartCollisions(airplane);
+            }
         }
     }
 
@@ -109,11 +112,6 @@ public class CollisionManager : MonoBehaviour
         if (maxPenetration > 0f)
         {
             CollisionDetection.ApplyCollisionResolution(airplane.RootCollider, totalForce.normalized, torqueAtCoM, maxPenetration);
-            airplane.RootCollider.GetComponent<AgentControl>().isFlying = false;
-        }
-        else
-        {
-            airplane.RootCollider.GetComponent<AgentControl>().isFlying = true;
         }
     }
 

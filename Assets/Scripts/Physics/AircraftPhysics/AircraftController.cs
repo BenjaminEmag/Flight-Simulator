@@ -1,6 +1,10 @@
 using Klareh;
+using System;
+using System.Collections.Generic;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class AircraftController : MonoBehaviour
 {
@@ -16,7 +20,6 @@ public class AircraftController : MonoBehaviour
     public float pitchTorque = 2f;
     public float rollTorque = 2f;
     public float yawTorque = 1f;
-    public float brakeForce = 1f;
 
     [Header("Aerodynamics")]
     public float liftCoefficient = 0.5f;
@@ -26,33 +29,67 @@ public class AircraftController : MonoBehaviour
     private float yawInput = 0f;
     private float rollInput = 0f;
     private float thrustInput = 0f;
-    private bool braking = false;
 
     public bool isOnRunway = false;
     public bool isLanded = false;
 
-
     public TMP_Text thrustText;
     public TMP_Text HeightText;
 
-    private void Awake()
+    [SerializeField] private Vector3 minRunway;
+    [SerializeField] private Vector3 MaxRunway;
+
+    private Vector3 minaAiAreaForLand = new Vector3(-100, 150, -450);
+    private Vector3 maxaAiAreaForLand = new Vector3(100, 250, -500);
+
+    private float[] actions = new float[8];
+
+    [SerializeField] InsepectableDictionary Dictionary;
+    private Dictionary<keys, Image> uiKeys;
+
+    private Landing landingAi;
+    private bool isAiLanding = true;
+
+    private void Start()
     {
         zeroController = GetComponentInChildren<ZeroController>();
         rootParticle = GetComponent<Particle3D>();
+        landingAi = GetComponent<Landing>();
         zeroController.thrustPercentage = thrustPercentage;
+
+        uiKeys = Dictionary.ToDictionary();
     }
 
     private void FixedUpdate()
     {
-        ApplyControls();
+        if (!isAiLanding)
+            GetControls();
 
+        ApplyControls();
         ApplyAerodynamics();
         ApplyForces();
         UpdateUI();
-
+        ApplyBrakes();
         totalForce = Vector3.zero;
         totalTorque = Vector3.zero;
         zeroController.thrustPercentage = thrustPercentage;
+    }
+
+    private void GetControls()
+    {
+        actions[0] = Input.GetKey(KeyCode.W) ? 1 : 0;
+        actions[1] = Input.GetKey(KeyCode.S) ? -1 : 0;
+        actions[2] = Input.GetKey(KeyCode.UpArrow) ? 1 : 0;
+        actions[3] = Input.GetKey(KeyCode.DownArrow) ? -1 : 0;
+        actions[4] = Input.GetKey(KeyCode.A) ? 1 : 0;
+        actions[5] = Input.GetKey(KeyCode.D) ? -1 : 0;
+        actions[6] = Input.GetKey(KeyCode.LeftArrow) ? -1 : 0;
+        actions[7] = Input.GetKey(KeyCode.RightArrow) ? 1 : 0;
+
+        thrustInput = actions[0] + actions[1];
+        pitchInput = actions[2] + actions[3];
+        rollInput = actions[4] + actions[5];
+        yawInput = actions[6] + actions[7];
     }
 
     private void ApplyAerodynamics()
@@ -102,51 +139,87 @@ public class AircraftController : MonoBehaviour
         totalForce += transform.forward * thrustCoefficent * thrust;
     }
 
-    public void SetInput(float pitch, float yaw, float roll, float thrust, bool brake)
+    public void SetInput(float pitch, float yaw, float roll, float thrust)
     {
+
+        foreach (KeyValuePair<keys, Image> entry in uiKeys)
+        {
+            Color newColor = entry.Value.color;
+
+            switch (entry.Key)
+            {
+                case keys.W:
+                    newColor.a = (thrust < 0) ? 0.5f : 1f;
+                    entry.Value.color = newColor;
+                    break;
+                case keys.S:
+                    newColor.a = (thrust > 0) ? 0.5f : 1f;
+                    entry.Value.color = newColor;
+                    break;
+                case keys.UP:
+                    newColor.a = (pitch > 0f) ? 0.5f : 1f;
+                    entry.Value.color = newColor;
+                    break;
+                case keys.Down:
+                    newColor.a = (pitch < 0f) ? 0.5f : 1f;
+                    entry.Value.color = newColor;
+                    break;
+                case keys.A:
+                    newColor.a = (roll > 0f) ? 0.5f : 1f;
+                    entry.Value.color = newColor;
+                    break;
+                case keys.D:
+                    newColor.a = (roll < 0f) ? 0.5f : 1f;
+                    entry.Value.color = newColor;
+                    break;
+                case keys.Left:
+                    newColor.a = (yaw < 0f) ? 0.5f : 1f;
+                    entry.Value.color = newColor;
+                    break;
+                case keys.Right:
+                    newColor.a = (yaw > 0f) ? 0.5f : 1f;
+                    entry.Value.color = newColor;
+                    break;
+            }
+        }
+
         pitchInput = pitch;
         yawInput = yaw;
         rollInput = roll;
         thrustInput = thrust;
-        braking = brake && isOnRunway;
     }
     private void ApplyBrakes()
     {
-        if (!isOnRunway || !braking) return;
-
-        Vector3 velocity = rootParticle.velocity;
-
-        Vector3 brakeForceVector = -velocity.normalized * brakeForce;
-
-        totalForce += brakeForceVector;
-
-        if (velocity.magnitude < 1f)
+        if (transform.position.x >= minRunway.x && transform.position.x <= MaxRunway.x &&
+            transform.position.y >= minRunway.y && transform.position.y <= MaxRunway.y &&
+            transform.position.z >= minRunway.z && transform.position.z <= MaxRunway.z)
         {
-            rootParticle.velocity = Vector3.zero;
-            braking = false;
-            isLanded = true;
+            isOnRunway = true;
+            rootParticle.damping = 0.2f;
+
+            thrustPercentage = 0f;
+
+            isAiLanding = false;
+            if (rootParticle.velocity.sqrMagnitude < 0.2f)
+            {
+                isLanded = true;
+                rootParticle.velocity = Vector3.zero;
+                rootParticle.acceleration = Vector3.zero;
+            }
+            return;
         }
+
+        rootParticle.damping = 0.9f;
     }
 
     private void OnDrawGizmos()
     {
-        if (rootParticle == null) return;
-
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawSphere(rootParticle.centerOfMass, 0.2f);
-
-        if (totalForce != Vector3.zero)
         {
             Gizmos.color = Color.red;
-            Gizmos.DrawLine(rootParticle.centerOfMass, rootParticle.centerOfMass + totalForce.normalized * 2f);
-            Gizmos.DrawWireSphere(rootParticle.centerOfMass + totalForce.normalized * 2f, 0.1f);
-        }
+            // Gizmos.DrawWireCube((minaAiAreaForLand + maxaAiAreaForLand) / 2, maxaAiAreaForLand - minaAiAreaForLand);
 
-        if (totalTorque != Vector3.zero)
-        {
-            Gizmos.color = Color.blue;
-            Gizmos.DrawLine(rootParticle.centerOfMass, rootParticle.centerOfMass + totalTorque.normalized * 2f);
-            Gizmos.DrawWireSphere(rootParticle.centerOfMass + totalTorque.normalized * 2f, 0.1f);
         }
     }
+
 }
+
